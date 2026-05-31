@@ -46,7 +46,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y portaudio19-dev libasound2-dev libgtk-3-dev libappindicator3-dev xclip
+          sudo apt-get install -y portaudio19-dev libasound2-dev libgtk-3-dev libappindicator3-dev libfuse2t64 xclip
 
       - name: Install Windows NSIS
         if: runner.os == 'Windows'
