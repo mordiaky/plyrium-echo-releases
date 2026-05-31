@@ -33,7 +33,7 @@ jobs:
           - name: linux
             os: ubuntu-latest
             requirements: requirements-linux.txt
-            artifact: Plyrium-Echo-linux.zip
+            artifact: Plyrium-Echo-Linux.tar.gz
 
     steps:
       - uses: actions/checkout@v4
@@ -88,13 +88,56 @@ jobs:
         shell: bash
         run: |
           cd dist
-          zip -r "Plyrium-Echo-linux.zip" "Plyrium Echo"
+          tar -czf "Plyrium-Echo-Linux.tar.gz" "Plyrium Echo"
+
+      - name: Package Linux AppImage
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd dist
+          mkdir -p Echo.AppDir/usr/bin Echo.AppDir/usr/share/applications Echo.AppDir/usr/share/icons/hicolor/256x256/apps
+          cp -a "Plyrium Echo/." Echo.AppDir/usr/bin/
+          cp ../assets/brand/echo-app-icon.png Echo.AppDir/plyrium-echo.png
+          cp ../assets/brand/echo-app-icon.png Echo.AppDir/usr/share/icons/hicolor/256x256/apps/plyrium-echo.png
+          cat > Echo.AppDir/plyrium-echo.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Plyrium Echo
+          Exec=Plyrium Echo
+          Icon=plyrium-echo
+          Categories=Utility;Audio;
+          Terminal=false
+          EOF
+          cp Echo.AppDir/plyrium-echo.desktop Echo.AppDir/usr/share/applications/plyrium-echo.desktop
+          cat > Echo.AppDir/AppRun <<'EOF'
+          #!/usr/bin/env bash
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/Plyrium Echo" "$@"
+          EOF
+          chmod +x Echo.AppDir/AppRun "Echo.AppDir/usr/bin/Plyrium Echo"
+          curl -L -o appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool Echo.AppDir Plyrium-Echo-Linux.AppImage
 
       - name: Write checksum
         shell: bash
         run: |
           cd dist
-          python -c "import hashlib,pathlib; p=pathlib.Path('${{ matrix.artifact }}'); pathlib.Path('SHA256SUMS-${{ matrix.name }}.txt').write_text(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n', encoding='ascii')"
+          python - <<'PY'
+          import hashlib
+          import pathlib
+          artifacts = [pathlib.Path("${{ matrix.artifact }}")]
+          if "${{ matrix.name }}" == "linux":
+              artifacts.append(pathlib.Path("Plyrium-Echo-Linux.AppImage"))
+          lines = []
+          for p in artifacts:
+              digest = hashlib.sha256(p.read_bytes()).hexdigest()
+              line = f"{digest}  {p.name}\n"
+              p.with_name(p.name + ".sha256").write_text(line, encoding="ascii")
+              lines.append(line)
+          pathlib.Path("SHA256SUMS-${{ matrix.name }}.txt").write_text("".join(lines), encoding="ascii")
+          PY
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -102,6 +145,9 @@ jobs:
           name: echo-${{ matrix.name }}
           path: |
             dist/${{ matrix.artifact }}
+            dist/${{ matrix.artifact }}.sha256
+            dist/Plyrium-Echo-Linux.AppImage
+            dist/Plyrium-Echo-Linux.AppImage.sha256
             dist/SHA256SUMS-${{ matrix.name }}.txt
 
   publish:
@@ -141,5 +187,6 @@ jobs:
             Assets:
             - Windows installer: Plyrium-Echo-Setup.exe
             - macOS zip: Plyrium-Echo-macOS.zip
-            - Linux zip: Plyrium-Echo-linux.zip
+            - Linux AppImage: Plyrium-Echo-Linux.AppImage
+            - Linux tarball: Plyrium-Echo-Linux.tar.gz
             - Checksums: SHA256SUMS.txt
