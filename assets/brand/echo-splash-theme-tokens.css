@@ -1,0 +1,20 @@
+:root {
+  --echo-bg: #060608;
+  --echo-shell: #0b0d12;
+  --echo-panel: #11141b;
+  --echo-panel-2: #151924;
+  --echo-line: #2c3340;
+  --echo-ink: #f0eee8;
+  --echo-dim: #a8b0c2;
+  --echo-muted: #6f7a91;
+  --echo-blue: #5B7CFF;
+  --echo-violet: #8B5CF6;
+  --echo-cyan: #00D4FF;
+  --echo-local-green: #00E676;
+  --echo-forge-orange: #FF6A00;
+  --echo-radius-window: 28px;
+  --echo-radius-panel: 18px;
+  --echo-radius-control: 12px;
+  --echo-shadow-window: 0 28px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08);
+  --echo-shadow-glow: 0 0 32px rgba(91,124,255,.32), 0 0 80px rgba(0,212,255,.12);
+}

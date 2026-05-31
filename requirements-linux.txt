@@ -1,0 +1,5 @@
+-r requirements-base.txt
+
+# Linux ships CPU by default. NVIDIA users can install CUDA/runtime libraries
+# on the host, or we can add an optional GPU artifact later.
+

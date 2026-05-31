@@ -1,0 +1,5 @@
+-r requirements-base.txt
+
+# No CUDA bundle on macOS. Whisper runs CPU by default unless we add a
+# platform-specific Metal/CoreML path later.
+

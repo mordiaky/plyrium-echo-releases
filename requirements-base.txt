@@ -1,0 +1,13 @@
+# Cross-platform Plyrium Echo runtime dependencies.
+#
+# Platform-specific files layer OS-only integrations on top of this file.
+faster-whisper>=1.1
+sounddevice>=0.4.6
+numpy>=1.24
+pynput>=1.7.6
+pyperclip>=1.8.2
+pystray>=0.19
+pillow>=10.0
+cryptography>=42.0
+PySide6>=6.7
+

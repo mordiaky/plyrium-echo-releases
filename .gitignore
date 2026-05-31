@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# App
+config.local.json
+*.log
+_diagnostic.txt
+_modelinfo.txt
+
+# Models (large; kept outside the repo / in HF cache)
+models/
+*.onnx
+*.nemo
+
+# Temp / scratch
+_*.wav
+_*.log
+_*.py
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec.bak

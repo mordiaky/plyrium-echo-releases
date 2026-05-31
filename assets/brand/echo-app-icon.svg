@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="a-signal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00D4FF"/>
+      <stop offset="0.46" stop-color="#5B7CFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="a-signal-v" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#00D4FF"/>
+      <stop offset="0.55" stop-color="#5B7CFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="a-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="a-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#5B7CFF" flood-opacity="0.34"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="#00D4FF" flood-opacity="0.16"/>
+    </filter>
+    <pattern id="a-scan" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M0 0H10M0 0V10" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect x="56" y="56" width="912" height="912" rx="156" fill="#0b0d12" stroke="#303743" stroke-width="16"/>
+  <rect x="84" y="84" width="856" height="856" rx="132" fill="url(#a-scan)" opacity="0.55"/>
+  <circle cx="512" cy="512" r="324" fill="none" stroke="url(#a-signal)" stroke-opacity="0.22" stroke-width="10"/>
+  <g transform="translate(128 126) scale(1.5)" filter="url(#a-soft)">
+    <circle cx="256" cy="256" r="170" fill="none" stroke="url(#a-signal)" stroke-opacity="0.26" stroke-width="8"/>
+    <circle cx="256" cy="256" r="120" fill="none" stroke="url(#a-signal)" stroke-opacity="0.18" stroke-width="4" stroke-dasharray="18 18"/>
+    <path d="M78 210h58l28-46 37 160 42-246 43 300 38-178 30 84h78" fill="none" stroke="url(#a-signal)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M92 314h94M326 314h94" stroke="#FF6A00" stroke-width="14" stroke-linecap="round" opacity="0.82"/>
+    <path d="M256 108v296" stroke="url(#a-signal-v)" stroke-width="16" stroke-linecap="round" opacity="0.92"/>
+    <path d="M220 414h72M256 414v44" stroke="#00D4FF" stroke-width="14" stroke-linecap="round"/>
+    <path d="M166 132 108 190l58 58M346 132l58 58-58 58" fill="none" stroke="url(#a-signal)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <circle cx="256" cy="256" r="22" fill="#060608" stroke="#f0eee8" stroke-opacity="0.82" stroke-width="8"/>
+  </g>
+</svg>

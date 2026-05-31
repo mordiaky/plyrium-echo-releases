@@ -1,0 +1,145 @@
+name: Plyrium Echo Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.0.1"
+        required: true
+        default: "1.0.1"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            requirements: requirements-windows.txt
+            artifact: Plyrium-Echo-Setup.exe
+          - name: macos
+            os: macos-latest
+            requirements: requirements-macos.txt
+            artifact: Plyrium-Echo-macOS.zip
+          - name: linux
+            os: ubuntu-latest
+            requirements: requirements-linux.txt
+            artifact: Plyrium-Echo-linux.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Linux system packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y portaudio19-dev libasound2-dev libgtk-3-dev libappindicator3-dev xclip
+
+      - name: Install Windows NSIS
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r "${{ matrix.requirements }}"
+          pip install pyinstaller
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          python tests/test_audio_devices.py
+          python tests/test_format.py
+          python tests/test_gate.py
+
+      - name: Build app
+        shell: bash
+        run: pyinstaller PlyriumEcho-ci.spec --noconfirm
+
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" PlyriumEcho.nsi
+
+      - name: Package macOS zip
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "dist/Plyrium Echo" "dist/Plyrium-Echo-macOS.zip"
+
+      - name: Package Linux zip
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd dist
+          zip -r "Plyrium-Echo-linux.zip" "Plyrium Echo"
+
+      - name: Write checksum
+        shell: bash
+        run: |
+          cd dist
+          python -c "import hashlib,pathlib; p=pathlib.Path('${{ matrix.artifact }}'); pathlib.Path('SHA256SUMS-${{ matrix.name }}.txt').write_text(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n', encoding='ascii')"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-${{ matrix.name }}
+          path: |
+            dist/${{ matrix.artifact }}
+            dist/SHA256SUMS-${{ matrix.name }}.txt
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Combine checksums
+        run: |
+          cat release-assets/SHA256SUMS-*.txt > release-assets/SHA256SUMS.txt
+          rm release-assets/SHA256SUMS-*.txt
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Plyrium Echo ${{ steps.tag.outputs.tag }}
+          files: release-assets/*
+          body: |
+            Plyrium Echo cross-platform release.
+
+            Assets:
+            - Windows installer: Plyrium-Echo-Setup.exe
+            - macOS zip: Plyrium-Echo-macOS.zip
+            - Linux zip: Plyrium-Echo-linux.zip
+            - Checksums: SHA256SUMS.txt

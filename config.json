@@ -1,0 +1,29 @@
+{
+  "model_size": "large-v3-turbo",
+  "beam_size": 5,
+  "device": "auto",
+  "compute_type": "auto",
+  "language": "en",
+  "hotkey": "ctrl+win",
+  "handsfree_hotkey": "ctrl+win+space",
+  "output_mode": "paste",
+  "type_delay": 0.0,
+  "smart_format": true,
+  "chat_apps_no_period": true,
+  "overlay": true,
+  "noise_gate": false,
+  "gate_threshold": 0.015,
+  "input_device": null,
+  "min_seconds": 0.3,
+  "duck_audio": true,
+  "duck_level": 0.25,
+  "llm_cleanup": true,
+  "llm_model": "qwen2.5:3b",
+  "llm_keep_alive": "5m",
+  "dictionary": [
+    "Plyrium",
+    "Forge",
+    "Plyrium Echo",
+    "Plyrium Forge"
+  ]
+}

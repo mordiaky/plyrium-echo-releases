@@ -1,0 +1,8 @@
+# Optional GPU acceleration for faster-whisper on NVIDIA cards (incl. RTX 50-series
+# / Blackwell). These are the CUDA 12 runtime libraries as pip wheels — no
+# system-wide CUDA toolkit install needed. model.py copies the DLLs next to
+# CTranslate2's loader automatically on first run.
+#
+# setup.ps1 installs these automatically when `nvidia-smi` is present.
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*

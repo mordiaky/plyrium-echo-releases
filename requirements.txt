@@ -1,0 +1,25 @@
+# Plyrium Echo runtime dependencies — 100% local, offline at runtime.
+#
+# Speech-to-text: faster-whisper (Whisper via CTranslate2). One model does the
+# whole job — transcription PLUS punctuation/capitalization. No PyTorch.
+faster-whisper>=1.1
+
+# Audio capture, global hotkeys, clipboard paste.
+sounddevice>=0.4.6
+numpy>=1.24
+pynput>=1.7.6
+pyperclip>=1.8.2
+
+# System-tray icon (Wispr-style) + icon rendering.
+pystray>=0.19
+pillow>=10.0
+
+# Audio ducking — dip other system audio while dictating (Windows Core Audio).
+pycaw>=20240210
+comtypes>=1.2
+
+# Offline license-key verification (Ed25519 signed keys, no phone-home).
+cryptography>=42.0
+
+# The floating overlay uses stdlib tkinter. GPU acceleration is optional — see
+# requirements-gpu.txt (setup.ps1 installs it when an NVIDIA GPU is detected).
