@@ -553,8 +553,34 @@ class MainWindow(QWidget):
             tcol.setStyleSheet(f"color:{MUTED};"); tcol.setAlignment(Qt.AlignTop)
             txt = QLabel(r["text"]); txt.setFont(_f(10)); txt.setWordWrap(True); txt.setStyleSheet(f"color:{INK};")
             rl.addWidget(tcol); rl.addWidget(txt, 1)
+            self._bind_history_copy(roww, r["text"], tcol)
+            self._bind_history_copy(tcol, r["text"], tcol)
+            self._bind_history_copy(txt, r["text"], tcol)
             self._hist_v.addWidget(roww)
         self._hist_v.addStretch()
+
+    def _bind_history_copy(self, widget, text: str, feedback: QLabel) -> None:
+        widget.setCursor(Qt.PointingHandCursor)
+
+        def copy_on_left_click(e):
+            if e.button() == Qt.LeftButton:
+                self._copy_history_text(text, feedback)
+                e.accept()
+
+        widget.mousePressEvent = copy_on_left_click
+
+    def _copy_history_text(self, text: str, feedback: QLabel) -> None:
+        try:
+            QApplication.clipboard().setText(text)
+            old = feedback.text()
+            feedback.setText("copied!")
+            feedback.setStyleSheet(f"color:{CYAN};")
+            QTimer.singleShot(900, lambda: (
+                feedback.setText(old),
+                feedback.setStyleSheet(f"color:{MUTED};"),
+            ))
+        except Exception:
+            pass
 
     def _clear_history(self):
         from PySide6.QtWidgets import QMessageBox
