@@ -151,6 +151,7 @@ class _Bridge(QObject):
     hide_overlay = Signal()
     set_visible = Signal(bool)
     open_window = Signal()
+    open_window_section = Signal(str)
     quit = Signal()
 
 
@@ -205,6 +206,7 @@ class QtController:
         self.bridge.hide_overlay.connect(self.flow.stop_show)
         self.bridge.set_visible.connect(self._set_visible)
         self.bridge.open_window.connect(self._open_window)
+        self.bridge.open_window_section.connect(self._open_window)
         self.bridge.quit.connect(self.qapp.quit)
         self.overlay = _OverlayFacade(self)
 
@@ -213,13 +215,15 @@ class QtController:
         if not v:
             self.flow.stop_show()
 
-    def _open_window(self):
+    def _open_window(self, section: str = ""):
         from .qtwindow import MainWindow
         if self._window is not None:
             try:
                 self._window.showNormal()
                 self._window.raise_()
                 self._window.activateWindow()
+                if section:
+                    self._window.show_section(section)
                 return
             except Exception:
                 self._window = None
@@ -227,6 +231,8 @@ class QtController:
         if not self._app_icon.isNull():
             self._window.setWindowIcon(self._app_icon)
         self.app._window = self._window
+        if section:
+            self._window.show_section(section)
         self._window.show()
         self._window.raise_()
         self._window.activateWindow()
@@ -234,6 +240,9 @@ class QtController:
     # thread-safe entry points used by app.py
     def open_window(self):
         self.bridge.open_window.emit()
+
+    def open_window_section(self, section: str):
+        self.bridge.open_window_section.emit(section)
 
     def run(self):
         self.qapp.exec()

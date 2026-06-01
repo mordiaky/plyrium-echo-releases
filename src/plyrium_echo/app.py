@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import threading
 import time
+import sys
 
 from .audio import MicRecorder
 from .audioduck import AudioDucker
@@ -337,6 +338,28 @@ class App:
         qt = getattr(self, "_qt", None)
         if qt is not None:
             qt.open_window()
+
+    def open_about(self) -> None:
+        """Open the main window directly to About."""
+        qt = getattr(self, "_qt", None)
+        if qt is not None and hasattr(qt, "open_window_section"):
+            qt.open_window_section("About")
+        else:
+            self.open_window()
+
+    def check_for_updates(self):
+        from . import updater
+
+        return updater.latest_release()
+
+    def install_update(self, release, progress=None) -> str:
+        from . import updater
+
+        package = updater.download_release_asset(release, progress=progress)
+        message = updater.launch_installer(package, release)
+        if sys.platform == "win32":
+            self.shutdown()
+        return message
 
     def _refresh_window_history(self) -> None:
         w = self._window

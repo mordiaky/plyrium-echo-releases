@@ -16,6 +16,7 @@ set_duck, reload_model, activate_license, ...), so behavior is unchanged.
 from __future__ import annotations
 
 import getpass
+import threading
 import time
 from pathlib import Path
 
@@ -27,7 +28,9 @@ from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton,
                                QVBoxLayout, QHBoxLayout, QStackedWidget,
                                QFrame, QLineEdit, QComboBox, QCheckBox,
                                QScrollArea, QGridLayout, QSizePolicy,
-                               QGraphicsDropShadowEffect)
+                               QGraphicsDropShadowEffect, QMessageBox)
+
+from . import __version__
 
 # ── brand tokens (echo-splash-theme-tokens.css) ──
 BG = "#060608"
@@ -254,6 +257,10 @@ class MainWindow(QWidget):
     # signals so background threads can drive the UI safely
     sig_history = Signal()
     sig_status = Signal(str)
+    sig_update_checked = Signal(object)
+    sig_update_message = Signal(str)
+    sig_update_failed = Signal(str)
+    sig_update_ready = Signal(str)
 
     def __init__(self, app):
         super().__init__()
@@ -274,6 +281,10 @@ class MainWindow(QWidget):
         self._build()
         self.sig_history.connect(self._on_new_entry)
         self.sig_status.connect(self._set_status_text)
+        self.sig_update_checked.connect(self._on_update_checked)
+        self.sig_update_message.connect(self._set_update_message)
+        self.sig_update_failed.connect(self._on_update_failed)
+        self.sig_update_ready.connect(self._on_update_ready)
         self.show_section("Home")
 
     # ---- chrome / drag ----
@@ -739,23 +750,129 @@ class MainWindow(QWidget):
     # ---- About ----
     def _page_about(self):
         page = QWidget()
-        v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20)
+        v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(12)
         h = QLabel("About"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         v.addWidget(h)
         lm = _brand_dir() / "echo-logo-lockup.png"
         if lm.exists():
             logo = QLabel(); logo.setPixmap(QPixmap(str(lm)).scaledToWidth(420, Qt.SmoothTransformation))
             v.addWidget(logo)
+        version = QLabel(f"Version {__version__}")
+        version.setFont(_f(10, bold=True, mono=True))
+        version.setStyleSheet(f"color:{CYAN};")
+        v.addWidget(version)
         body = QLabel(
             "Plyrium Echo - push-to-talk dictation that runs 100% on your machine.\n\n"
             "Your voice and your text never leave this computer. Transcription and the "
-            "AI cleanup both run locally; the only network use is the one-time model "
-            "download.\n\n"
+            "AI cleanup both run locally. Network access is limited to explicit actions "
+            "like downloading a model, checking for updates, or opening the license page.\n\n"
             f"Hold {self.cfg.hotkey} to talk.  Tap {self.cfg.handsfree_hotkey} for "
             "hands-free.  Esc cancels.\n\nPart of the Plyrium family.")
         body.setWordWrap(True); body.setFont(_f(10)); body.setStyleSheet(f"color:{INK};")
-        v.addWidget(body); v.addStretch()
+        v.addWidget(body)
+
+        updater = Card(bg=PANEL2, radius=14)
+        ul = QVBoxLayout(updater); ul.setContentsMargins(16, 14, 16, 14); ul.setSpacing(8)
+        uh = QLabel("Updates")
+        uh.setFont(_f(13, bold=True)); uh.setStyleSheet(f"color:{INK};")
+        self._update_status = QLabel(
+            "Check GitHub Releases for a newer Echo build. Your transcripts, "
+            "license, settings, and downloaded models stay in the local data folder."
+        )
+        self._update_status.setWordWrap(True)
+        self._update_status.setFont(_f(9))
+        self._update_status.setStyleSheet(f"color:{DIM};")
+        ur = QHBoxLayout()
+        self._check_update_btn = QPushButton("Check for updates")
+        self._check_update_btn.setCursor(Qt.PointingHandCursor)
+        self._check_update_btn.setStyleSheet(self._btn_qss())
+        self._check_update_btn.clicked.connect(self._check_updates)
+        self._install_update_btn = QPushButton("Download and install")
+        self._install_update_btn.setCursor(Qt.PointingHandCursor)
+        self._install_update_btn.setStyleSheet(self._btn_qss(primary=True))
+        self._install_update_btn.clicked.connect(self._install_update)
+        self._install_update_btn.setEnabled(False)
+        ur.addWidget(self._check_update_btn)
+        ur.addWidget(self._install_update_btn)
+        ur.addStretch()
+        ul.addWidget(uh); ul.addWidget(self._update_status); ul.addLayout(ur)
+        v.addWidget(updater)
+        v.addStretch()
         return page
+
+    def _check_updates(self):
+        self._latest_update = None
+        self._check_update_btn.setEnabled(False)
+        self._install_update_btn.setEnabled(False)
+        self._set_update_message("Checking for updates...")
+
+        def work():
+            try:
+                self.sig_update_checked.emit(self.app.check_for_updates())
+            except Exception as exc:
+                self.sig_update_failed.emit(str(exc))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_update_checked(self, release):
+        self._check_update_btn.setEnabled(True)
+        self._latest_update = release if getattr(release, "update_available", False) else None
+        if not getattr(release, "asset", None):
+            self._install_update_btn.setEnabled(False)
+            self._set_update_message(
+                f"Version {release.version} is online, but no updater package "
+                "is available for this platform yet."
+            )
+            return
+        if release.update_available:
+            self._install_update_btn.setEnabled(True)
+            self._set_update_message(
+                f"Plyrium Echo {release.version} is available. Click Download "
+                "and install to update in place."
+            )
+        else:
+            self._install_update_btn.setEnabled(False)
+            self._set_update_message(f"You are up to date on Plyrium Echo {__version__}.")
+
+    def _install_update(self):
+        release = getattr(self, "_latest_update", None)
+        if release is None:
+            return
+        if QMessageBox.question(
+            self,
+            "Install update",
+            "Echo will download and verify the update. On Windows, the app will "
+            "close, update in place, and reopen. Your transcripts, license, "
+            "settings, and models will stay intact.",
+        ) != QMessageBox.Yes:
+            return
+        self._check_update_btn.setEnabled(False)
+        self._install_update_btn.setEnabled(False)
+
+        def progress(msg: str):
+            self.sig_update_message.emit(msg)
+
+        def work():
+            try:
+                msg = self.app.install_update(release, progress=progress)
+                self.sig_update_ready.emit(msg)
+            except Exception as exc:
+                self.sig_update_failed.emit(str(exc))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _set_update_message(self, msg: str):
+        if hasattr(self, "_update_status"):
+            self._update_status.setText(msg)
+
+    def _on_update_failed(self, msg: str):
+        self._check_update_btn.setEnabled(True)
+        self._install_update_btn.setEnabled(bool(getattr(self, "_latest_update", None)))
+        self._set_update_message(f"Update failed: {msg}")
+
+    def _on_update_ready(self, msg: str):
+        self._set_update_message(msg)
+        QMessageBox.information(self, "Plyrium Echo update", msg)
 
     # ---- shared button style ----
     def _btn_qss(self, primary=False, danger=False):

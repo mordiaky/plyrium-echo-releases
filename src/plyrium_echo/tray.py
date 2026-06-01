@@ -145,8 +145,7 @@ def build_tray(app) -> "pystray.Icon":
             pass
 
     def _about(icon, item):
-        _notify(icon, "Plyrium Echo — local, offline dictation. "
-                      f"Hold {app.cfg.hotkey} to talk.")
+        app.open_about()
 
     def _show_window(icon, item):
         app.open_window()

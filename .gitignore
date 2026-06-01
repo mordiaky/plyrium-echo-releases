@@ -21,6 +21,7 @@ models/
 _*.wav
 _*.log
 _*.py
+!src/plyrium_echo/__init__.py
 
 # PyInstaller build artifacts
 build/
