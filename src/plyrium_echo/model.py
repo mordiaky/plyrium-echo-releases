@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 
 DEFAULT_MODEL = "small.en"
+CPU_PREFERRED_MODELS = {"tiny", "tiny.en", "base", "base.en", "small", "small.en"}
 
 
 @dataclass
@@ -125,6 +126,18 @@ def _resolve(device: str, compute_type: str) -> tuple[str, str]:
     return dev, comp
 
 
+def resolve_runtime(model_size: str, device: str, compute_type: str) -> tuple[str, str]:
+    """Resolve the runtime for a model.
+
+    Small Whisper variants are selected for CPU speed/low overhead. Keeping
+    them on CPU also frees the GPU for local cleanup models and avoids the UI
+    saying "small" while the status badge still reads CUDA.
+    """
+    if (model_size or "").lower() in CPU_PREFERRED_MODELS and device == "auto":
+        return "cpu", "int8" if compute_type == "auto" else compute_type
+    return _resolve(device, compute_type)
+
+
 def resolve_model(model_size: str) -> str:
     """Return a bundled model DIRECTORY when one exists, else the size string.
 
@@ -196,7 +209,7 @@ def probe(model_size: str = DEFAULT_MODEL, device: str = "auto",
           compute_type: str = "auto") -> ModelInfo:
     if importlib.util.find_spec("faster_whisper") is None:
         return ModelInfo(kind="unknown", note="faster-whisper not installed")
-    dev, comp = _resolve(device, compute_type)
+    dev, comp = resolve_runtime(model_size, device, compute_type)
     return ModelInfo(kind="whisper", model_size=model_size, device=dev,
                      compute_type=comp)
 
@@ -216,7 +229,7 @@ class Transcriber:
 
         self.language = language
         self.beam_size = beam_size
-        dev, comp = _resolve(device, compute_type)
+        dev, comp = resolve_runtime(model_size, device, compute_type)
         model_ref = resolve_model(model_size)  # bundled dir when frozen
 
         try:

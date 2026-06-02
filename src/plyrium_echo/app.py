@@ -444,9 +444,18 @@ class App:
         the previous model stays active and the error is reported.
         """
         with self._reload_lock:
-            if size == self.cfg.model_size and not force:
+            from .model import Transcriber, ensure_model, resolve_runtime
+
+            target_device, target_compute = resolve_runtime(
+                size, self.cfg.device, self.cfg.compute_type
+            )
+            live_matches = (
+                size == getattr(self.transcriber, "model_size", None)
+                and target_device == getattr(self.transcriber, "device", None)
+                and target_compute == getattr(self.transcriber, "compute_type", None)
+            )
+            if live_matches and not force:
                 return
-            from .model import Transcriber, ensure_model
 
             try:
                 ensure_model(size, progress=notify)
@@ -471,11 +480,21 @@ class App:
             self.cfg.model_size = size
             self.cfg.save()
             self._refresh_tray()
+            self._refresh_window_status()
             if notify:
                 notify(f"Now using {size} on {new.device}.")
         # Outside the reload lock: if a heavy model just loaded on CPU and an
         # NVIDIA GPU is available, fetch CUDA + switch to GPU in the background.
         self.auto_gpu_if_needed()
+
+    def _refresh_window_status(self) -> None:
+        w = self._window
+        if w is None:
+            return
+        try:
+            w.refresh_status()
+        except Exception:
+            pass
 
     def start_hotkeys(self) -> None:
         self.hk.start()

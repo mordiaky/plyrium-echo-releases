@@ -257,6 +257,7 @@ class MainWindow(QWidget):
     # signals so background threads can drive the UI safely
     sig_history = Signal()
     sig_status = Signal(str)
+    sig_refresh_status = Signal()
     sig_update_checked = Signal(object)
     sig_update_message = Signal(str)
     sig_update_failed = Signal(str)
@@ -281,6 +282,7 @@ class MainWindow(QWidget):
         self._build()
         self.sig_history.connect(self._on_new_entry)
         self.sig_status.connect(self._set_status_text)
+        self.sig_refresh_status.connect(self._refresh_status)
         self.sig_update_checked.connect(self._on_update_checked)
         self.sig_update_message.connect(self._set_update_message)
         self.sig_update_failed.connect(self._on_update_failed)
@@ -676,6 +678,7 @@ class MainWindow(QWidget):
 
         # combos
         v.addWidget(self._combo_row("Model", MODEL_CHOICES, self.cfg.model_size, self._pick_model))
+        QTimer.singleShot(0, self._reconcile_live_model)
         v.addWidget(self._combo_row("Output mode", OUTPUT_CHOICES, self.cfg.output_mode, self.app.set_output_mode))
         duck = None if not self.cfg.duck_audio else self.cfg.duck_level
         v.addWidget(self._combo_row("Lower other audio", DUCK_CHOICES, duck, self.app.set_duck))
@@ -728,10 +731,29 @@ class MainWindow(QWidget):
         d = QFrame(); d.setFixedHeight(1); d.setStyleSheet(f"background:{LINE};"); return d
 
     def _pick_model(self, size):
-        if size == self.cfg.model_size:
-            return
         import threading
         threading.Thread(target=lambda: self.app.reload_model(size), daemon=True).start()
+
+    def _reconcile_live_model(self):
+        live = getattr(self.app, "transcriber", None)
+        if live is None:
+            return
+        if getattr(live, "model_size", None) != self.cfg.model_size:
+            self._pick_model(self.cfg.model_size)
+            return
+        try:
+            from .model import resolve_runtime
+
+            target_device, target_compute = resolve_runtime(
+                self.cfg.model_size, self.cfg.device, self.cfg.compute_type
+            )
+            if (
+                getattr(live, "device", None) != target_device
+                or getattr(live, "compute_type", None) != target_compute
+            ):
+                self._pick_model(self.cfg.model_size)
+        except Exception:
+            pass
 
     def _activate(self):
         from PySide6.QtWidgets import QMessageBox
@@ -890,6 +912,9 @@ class MainWindow(QWidget):
         dev = t.device.upper() if t.device != "cuda" else "CUDA"
         self._badge_title.setText("MODEL READY"); self._badge_title.setStyleSheet(f"color:{GREEN};")
         self._badge_sub.setText(f"{t.model_size} / {dev}")
+
+    def refresh_status(self):
+        self.sig_refresh_status.emit()
 
     def _set_status_text(self, msg):
         self._badge_title.setText("GPU SETUP"); self._badge_title.setStyleSheet(f"color:{CYAN};")
