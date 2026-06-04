@@ -134,6 +134,29 @@ def _shadow(widget, blur=28, y=16, color=(0, 0, 0, 120)):
     return widget
 
 
+def _transparent_surface(widget):
+    widget.setAutoFillBackground(False)
+    widget.setAttribute(Qt.WA_StyledBackground, True)
+    widget.setStyleSheet("background:transparent;")
+    return widget
+
+
+def _transparent_scroll_area():
+    area = QScrollArea()
+    area.setWidgetResizable(True)
+    area.setFrameShape(QFrame.NoFrame)
+    area.setAutoFillBackground(False)
+    area.setAttribute(Qt.WA_StyledBackground, True)
+    area.viewport().setAutoFillBackground(False)
+    area.viewport().setAttribute(Qt.WA_StyledBackground, True)
+    area.viewport().setStyleSheet("background:transparent;")
+    area.setStyleSheet(
+        "QScrollArea{border:none;background:transparent;}"
+        "QScrollArea QWidget{background:transparent;}"
+    )
+    return area
+
+
 class Card(QFrame):
     """Rounded panel with optional colored top-accent bar."""
     def __init__(self, accent=None, bg=PANEL, radius=18):
@@ -372,6 +395,7 @@ class MainWindow(QWidget):
 
         # ----- content stack -----
         self.stack = QStackedWidget()
+        self.stack.setStyleSheet("QStackedWidget{background:transparent;}")
         outer.addWidget(self.stack, 1)
         self._pages = {}
         self._refresh_status()
@@ -424,7 +448,7 @@ class MainWindow(QWidget):
 
     # ---- Home ----
     def _page_home(self):
-        page = QWidget()
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(0, 36, 0, 0); v.setSpacing(18)
 
         # greeting + PRIVATE
@@ -519,7 +543,7 @@ class MainWindow(QWidget):
 
     # ---- History ----
     def _page_history(self):
-        page = QWidget()
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(8)
         h = QLabel("History"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         sub = QLabel("All transcripts are private and stored locally on your machine.")
@@ -535,9 +559,8 @@ class MainWindow(QWidget):
         clr.clicked.connect(self._clear_history)
         bar.addWidget(self._search, 1); bar.addWidget(clr)
         v.addLayout(bar)
-        self._hist_area = QScrollArea(); self._hist_area.setWidgetResizable(True)
-        self._hist_area.setStyleSheet("QScrollArea{border:none;background:transparent;}")
-        self._hist_inner = QWidget(); self._hist_area.setWidget(self._hist_inner)
+        self._hist_area = _transparent_scroll_area()
+        self._hist_inner = _transparent_surface(QWidget()); self._hist_area.setWidget(self._hist_inner)
         self._hist_v = QVBoxLayout(self._hist_inner); self._hist_v.setContentsMargins(0, 6, 0, 6); self._hist_v.setSpacing(0)
         v.addWidget(self._hist_area, 1)
         self._fill_history()
@@ -561,7 +584,8 @@ class MainWindow(QWidget):
                 cur = day
                 d = QLabel(day); d.setFont(_f(8, bold=True)); d.setStyleSheet(f"color:{MUTED};padding:14px 6px 4px;")
                 self._hist_v.addWidget(d)
-            roww = QFrame(); roww.setStyleSheet("QFrame:hover{background:#141822;border-radius:8px;}")
+            roww = QFrame(); roww.setAttribute(Qt.WA_StyledBackground, True)
+            roww.setStyleSheet("QFrame{background:transparent;}QFrame:hover{background:#141822;border-radius:8px;}")
             rl = QHBoxLayout(roww); rl.setContentsMargins(8, 8, 8, 8)
             tcol = QLabel(_clock(r["ts"])); tcol.setFont(_f(9)); tcol.setFixedWidth(80)
             tcol.setStyleSheet(f"color:{MUTED};"); tcol.setAlignment(Qt.AlignTop)
@@ -605,7 +629,7 @@ class MainWindow(QWidget):
 
     # ---- Dictionary ----
     def _page_dictionary(self):
-        page = QWidget()
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(8)
         h = QLabel("Dictionary"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         sub = QLabel("Words the AI cleanup must always spell correctly.")
@@ -649,13 +673,12 @@ class MainWindow(QWidget):
 
     # ---- Settings ----
     def _page_settings(self):
-        page = QWidget()
+        page = _transparent_surface(QWidget())
         outer = QVBoxLayout(page); outer.setContentsMargins(28, 24, 24, 20)
         h = QLabel("Settings"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         outer.addWidget(h)
-        area = QScrollArea(); area.setWidgetResizable(True)
-        area.setStyleSheet("QScrollArea{border:none;background:transparent;}")
-        inner = QWidget(); area.setWidget(inner)
+        area = _transparent_scroll_area()
+        inner = _transparent_surface(QWidget()); area.setWidget(inner)
         v = QVBoxLayout(inner); v.setContentsMargins(0, 8, 8, 8); v.setSpacing(8)
         outer.addWidget(area, 1)
 
@@ -937,7 +960,7 @@ class MainWindow(QWidget):
 
     # ---- About ----
     def _page_about(self):
-        page = QWidget()
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(12)
         h = QLabel("About"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         v.addWidget(h)
