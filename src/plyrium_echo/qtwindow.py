@@ -141,7 +141,7 @@ def _transparent_surface(widget, bg="transparent"):
     return widget
 
 
-def _transparent_scroll_area(bg=BG):
+def _transparent_scroll_area(bg="transparent"):
     area = QScrollArea()
     area.setWidgetResizable(True)
     area.setFrameShape(QFrame.NoFrame)
@@ -459,7 +459,7 @@ class MainWindow(QWidget):
 
     # ---- Home ----
     def _page_home(self):
-        page = _transparent_surface(QWidget(), BG)
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(0, 36, 0, 0); v.setSpacing(18)
 
         # greeting + PRIVATE
@@ -554,7 +554,7 @@ class MainWindow(QWidget):
 
     # ---- History ----
     def _page_history(self):
-        page = _transparent_surface(QWidget(), BG)
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(8)
         h = QLabel("History"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         sub = QLabel("All transcripts are private and stored locally on your machine.")
@@ -570,8 +570,8 @@ class MainWindow(QWidget):
         clr.clicked.connect(self._clear_history)
         bar.addWidget(self._search, 1); bar.addWidget(clr)
         v.addLayout(bar)
-        self._hist_area = _transparent_scroll_area(BG)
-        self._hist_inner = _transparent_surface(QWidget(), BG); self._hist_area.setWidget(self._hist_inner)
+        self._hist_area = _transparent_scroll_area()
+        self._hist_inner = _transparent_surface(QWidget()); self._hist_area.setWidget(self._hist_inner)
         self._hist_v = QVBoxLayout(self._hist_inner); self._hist_v.setContentsMargins(0, 6, 0, 6); self._hist_v.setSpacing(0)
         v.addWidget(self._hist_area, 1)
         self._fill_history()
@@ -640,7 +640,7 @@ class MainWindow(QWidget):
 
     # ---- Dictionary ----
     def _page_dictionary(self):
-        page = _transparent_surface(QWidget(), BG)
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(8)
         h = QLabel("Dictionary"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         sub = QLabel("Words the AI cleanup must always spell correctly.")
@@ -684,12 +684,12 @@ class MainWindow(QWidget):
 
     # ---- Settings ----
     def _page_settings(self):
-        page = _transparent_surface(QWidget(), BG)
+        page = _transparent_surface(QWidget())
         outer = QVBoxLayout(page); outer.setContentsMargins(28, 24, 24, 20)
         h = QLabel("Settings"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         outer.addWidget(h)
-        area = _transparent_scroll_area(BG)
-        inner = _transparent_surface(QWidget(), BG); area.setWidget(inner)
+        area = _transparent_scroll_area()
+        inner = _transparent_surface(QWidget()); area.setWidget(inner)
         v = QVBoxLayout(inner); v.setContentsMargins(0, 8, 8, 8); v.setSpacing(8)
         outer.addWidget(area, 1)
 
@@ -971,7 +971,7 @@ class MainWindow(QWidget):
 
     # ---- About ----
     def _page_about(self):
-        page = _transparent_surface(QWidget(), BG)
+        page = _transparent_surface(QWidget())
         v = QVBoxLayout(page); v.setContentsMargins(28, 24, 24, 20); v.setSpacing(12)
         h = QLabel("About"); h.setFont(_f(20, bold=True)); h.setStyleSheet(f"color:{INK};")
         v.addWidget(h)

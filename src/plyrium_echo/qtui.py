@@ -77,9 +77,10 @@ def _install_dark_qt_defaults(qapp: QApplication) -> None:
     pal.setColor(QPalette.HighlightedText, QColor("#ffffff"))
     qapp.setPalette(pal)
     qapp.setStyleSheet("""
-        QWidget { background-color: #060608; color: #f0eee8; }
-        QFrame, QLabel, QStackedWidget, QScrollArea, QScrollArea > QWidget,
-        QScrollArea > QWidget > QWidget { background: transparent; }
+        QToolTip {
+            background-color: #151924; color: #f0eee8;
+            border: 1px solid #2c3340;
+        }
         QLineEdit, QComboBox, QListWidget, QAbstractItemView {
             background-color: #11141b; color: #f0eee8;
             selection-background-color: #5B7CFF; selection-color: #ffffff;

@@ -13,7 +13,7 @@ Unicode true
 
 !define APPNAME "Plyrium Echo"
 !define COMPANY "Plyrium"
-!define VERSION "1.0.10"
+!define VERSION "1.0.11"
 !define EXENAME "Plyrium Echo.exe"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\PlyriumEcho"
 
