@@ -411,7 +411,7 @@ class MainWindow(QWidget):
         self._pages = {}
         self._refresh_status()
 
-        chrome_holder = QWidget(shell)
+        chrome_holder = _transparent_surface(QWidget(shell))
         chrome_holder.setGeometry(self.width() - 92, 28, 66, 34)
         chrome = QHBoxLayout(chrome_holder)
         chrome.setContentsMargins(0, 0, 0, 0)
