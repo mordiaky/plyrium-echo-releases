@@ -29,7 +29,7 @@ _UNSET = object()  # "argument not provided" sentinel (so None can mean "disable
 
 # Models heavy enough to be worth auto-fetching the GPU pack for. The small
 # models run fine on CPU, so we never pull ~1.9 GB just to run those.
-_GPU_MODELS = {"large-v3-turbo", "large-v3", "medium.en", "medium"}
+_GPU_MODELS = {"large-v3-turbo", "large-v3", "medium"}
 
 
 class App:

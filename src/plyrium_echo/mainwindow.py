@@ -49,8 +49,8 @@ SECTIONS = [("Home", "⌂"), ("History", "◷"), ("Dictionary", "▤"),
             ("Settings", "⚙"), ("About", "ⓘ")]
 
 MODEL_CHOICES = [
-    ("Small — fastest (good on CPU)", "small.en"),
-    ("Medium — balanced", "medium.en"),
+    ("Small — fastest (good on CPU)", "small"),
+    ("Medium — balanced", "medium"),
     ("Large — most accurate (GPU)", "large-v3-turbo"),
 ]
 OUTPUT_CHOICES = [("Paste (recommended)", "paste"), ("Type", "type"),

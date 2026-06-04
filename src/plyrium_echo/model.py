@@ -30,7 +30,7 @@ from pathlib import Path
 
 import numpy as np
 
-DEFAULT_MODEL = "small.en"
+DEFAULT_MODEL = "small"
 CPU_PREFERRED_MODELS = {"tiny", "tiny.en", "base", "base.en", "small", "small.en"}
 
 
@@ -221,7 +221,7 @@ class Transcriber:
         device: str = "auto",
         compute_type: str = "auto",
         download_root: str | None = None,
-        language: str = "en",
+        language: str | None = None,
         beam_size: int = 1,
     ):
         _ensure_cuda_dlls()

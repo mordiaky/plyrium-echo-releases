@@ -92,7 +92,8 @@ identically. (`PLYRIUM_ECHO_ALLOW_NET=1` opts out if you ever want update checks
 
 | Key                  | Default          | Meaning |
 |----------------------|------------------|---------|
-| `model_size`         | `small.en`       | `tiny.en` · `base.en` · `small.en` · `medium.en` (bigger = more accurate, slower) |
+| `model_size`         | `small`          | `tiny` · `base` · `small` · `medium` · `large-v3-turbo` (multilingual; bigger = more accurate, slower) |
+| `language`           | `null`           | `null` = auto-detect spoken language; set a language code only when you want to force one |
 | `device`             | `auto`           | `auto` (GPU if present) · `cuda` · `cpu` |
 | `compute_type`       | `auto`           | `auto` · `float16` · `int8` · `int8_float16` |
 | `hotkey`             | `ctrl+win`       | Hold-to-talk combo |

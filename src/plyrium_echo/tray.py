@@ -21,11 +21,11 @@ import pystray
 from . import autostart
 from .icon import tray_image
 
-# Friendly label -> Whisper model id. English-only ids (.en) are the best
-# accuracy/speed trade for English dictation; large-v3-turbo is multilingual.
+# Friendly label -> Whisper model id. Use multilingual ids so every selectable
+# model matches Echo's multilingual product promise.
 MODELS = [
-    ("Small — fastest (good on CPU)", "small.en"),
-    ("Medium — balanced", "medium.en"),
+    ("Small — fastest (good on CPU)", "small"),
+    ("Medium — balanced", "medium"),
     ("Large — most accurate (GPU)", "large-v3-turbo"),
 ]
 

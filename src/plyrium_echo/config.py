@@ -19,9 +19,8 @@ from . import paths
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULTS: dict = {
-    # Whisper model. "large-v3-turbo" = best accuracy, fast on GPU (the local
-    # closest to Wispr). "medium.en"/"small.en"/"base.en"/"tiny.en" are smaller
-    # & lighter. On CPU prefer small.en.
+    # Whisper model. Use multilingual model IDs so Echo can be marketed and used
+    # as multilingual by default. On CPU prefer small.
     "model_size": "large-v3-turbo",
     # Beam search width. 5 = more accurate word choices (negligible cost on GPU);
     # 1 = greedy/fastest.
@@ -30,7 +29,8 @@ DEFAULTS: dict = {
     "device": "auto",
     # auto | float16 | int8 | int8_float16  (auto picks per device)
     "compute_type": "auto",
-    "language": "en",
+    # None = Whisper auto-detects the spoken language.
+    "language": None,
     # Hold-to-talk combo, and tap-to-toggle hands-free combo (null to disable).
     "hotkey": "ctrl+win",
     "handsfree_hotkey": "ctrl+win+space",
@@ -82,7 +82,7 @@ class Config:
     beam_size: int
     device: str
     compute_type: str
-    language: str
+    language: object
     hotkey: str
     handsfree_hotkey: object
     output_mode: str
@@ -129,6 +129,7 @@ class Config:
         # detected hardware (big/accurate on GPU, small/fast on CPU).
         if first_run and getattr(sys, "frozen", False):
             data["model_size"] = default_model_for_device()
+        data = _migrate_multilingual_defaults(data)
         known = {k: data.get(k, DEFAULTS[k]) for k in DEFAULTS}
         return cls(**known, _raw=data)
 
@@ -149,9 +150,35 @@ def default_model_for_device() -> str:
     try:
         from .model import cuda_usable
 
-        return "large-v3-turbo" if cuda_usable() else "small.en"
+        return "large-v3-turbo" if cuda_usable() else "small"
     except Exception:
-        return "small.en"
+        return "small"
+
+
+def _migrate_multilingual_defaults(data: dict) -> dict:
+    """Move legacy English-only defaults to multilingual equivalents.
+
+    Earlier Echo builds used OpenAI Whisper's ``*.en`` model IDs and forced
+    ``language = "en"``. That is good for English dictation, but it contradicts
+    Echo's multilingual product promise. There is no language picker in the UI,
+    so treating ``en`` as the old default and letting Whisper auto-detect is the
+    least surprising upgrade path.
+    """
+    migrated = dict(data)
+    model_map = {
+        "tiny.en": "tiny",
+        "base.en": "base",
+        "small.en": "small",
+        "medium.en": "medium",
+    }
+    model = migrated.get("model_size")
+    if isinstance(model, str):
+        migrated["model_size"] = model_map.get(model.lower(), model)
+
+    language = migrated.get("language")
+    if language in ("", "auto", "en"):
+        migrated["language"] = None
+    return migrated
 
 
 def _read_json(path: Path) -> dict:

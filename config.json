@@ -3,7 +3,7 @@
   "beam_size": 5,
   "device": "auto",
   "compute_type": "auto",
-  "language": "en",
+  "language": null,
   "hotkey": "ctrl+win",
   "handsfree_hotkey": "ctrl+win+space",
   "output_mode": "paste",
