@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import queue
+import sys
 
 try:
     import tkinter as tk
@@ -117,6 +118,23 @@ class Overlay:
         self._root.after(16, self._tick)
         self._root.mainloop()
 
+    def _place(self) -> None:
+        try:
+            x, y = self._win.winfo_pointerxy()
+            if sys.platform == "win32":
+                geo = _monitor_geometry_at(x, y)
+                if geo is not None:
+                    left, top, right, bottom = geo
+                    self._win.geometry(
+                        f"{_W}x{_H}+{left + ((right - left) - _W)//2}"
+                        f"+{bottom - _H - _BOTTOM_GAP}"
+                    )
+                    return
+        except Exception:
+            pass
+        sw, sh = self._win.winfo_screenwidth(), self._win.winfo_screenheight()
+        self._win.geometry(f"{_W}x{_H}+{(sw - _W)//2}+{sh - _H - _BOTTOM_GAP}")
+
     def _tick(self) -> None:
         try:
             while True:
@@ -124,6 +142,7 @@ class Overlay:
                 if cmd == "show":
                     self._state = "recording"
                     self._phase = 0.0
+                    self._place()
                     if self._visible:
                         self._win.deiconify()
                         self._win.lift()
@@ -172,10 +191,12 @@ class Overlay:
             d = (i - mid) / mid
             taper = math.exp(-(d * d) * 1.6)
             if self._state == "recording":
-                # traveling ripple + level; quiet speech still shows a low idle wave
-                wob = 0.5 + 0.5 * math.sin(self._phase * 0.18 + i * 0.55)
-                base = 0.12 + 0.88 * lvl
-                h = base * (0.45 + 0.55 * wob) * taper
+                signal = max(0.0, (lvl - 0.025) / 0.975)
+                if signal <= 0.001:
+                    h = 0.035
+                else:
+                    wob = 0.35 + 0.65 * math.sin(self._phase * 0.22 + i * 0.62) ** 2
+                    h = (0.035 + 0.58 * signal * wob) * taper
             else:  # transcribing: slow even shimmer
                 wob = 0.5 + 0.5 * math.sin(self._phase * 0.10 - i * 0.4)
                 h = (0.18 + 0.20 * wob) * taper
@@ -241,6 +262,39 @@ class Overlay:
             d.rounded_rectangle([x - r, cy - h / 2, x + r, cy + h / 2],
                                 radius=r, fill=(*col, 255))
         img.resize((_W, _H), Image.LANCZOS).save(path)
+
+
+def _monitor_geometry_at(x: int, y: int):
+    import ctypes
+    from ctypes import wintypes
+
+    class RECT(ctypes.Structure):
+        _fields_ = [
+            ("left", wintypes.LONG),
+            ("top", wintypes.LONG),
+            ("right", wintypes.LONG),
+            ("bottom", wintypes.LONG),
+        ]
+
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("rcMonitor", RECT),
+            ("rcWork", RECT),
+            ("dwFlags", wintypes.DWORD),
+        ]
+
+    monitor = ctypes.windll.user32.MonitorFromPoint(
+        wintypes.POINT(x, y), 2
+    )
+    if not monitor:
+        return None
+    info = MONITORINFO()
+    info.cbSize = ctypes.sizeof(MONITORINFO)
+    if not ctypes.windll.user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+        return None
+    r = info.rcWork
+    return r.left, r.top, r.right, r.bottom
 
 
 class NullOverlay:

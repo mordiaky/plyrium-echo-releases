@@ -28,7 +28,8 @@ from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton,
                                QVBoxLayout, QHBoxLayout, QStackedWidget,
                                QFrame, QLineEdit, QComboBox, QCheckBox,
                                QScrollArea, QGridLayout, QSizePolicy,
-                               QGraphicsDropShadowEffect, QMessageBox)
+                               QGraphicsDropShadowEffect, QMessageBox,
+                               QDialog)
 
 from . import __version__
 
@@ -682,6 +683,8 @@ class MainWindow(QWidget):
         v.addWidget(self._combo_row("Output mode", OUTPUT_CHOICES, self.cfg.output_mode, self.app.set_output_mode))
         duck = None if not self.cfg.duck_audio else self.cfg.duck_level
         v.addWidget(self._combo_row("Lower other audio", DUCK_CHOICES, duck, self.app.set_duck))
+        v.addWidget(self._hotkey_row("Push-to-talk shortcuts", self.cfg.hotkey, "ptt"))
+        v.addWidget(self._hotkey_row("Hands-free shortcuts", self.cfg.handsfree_hotkey, "hf", allow_empty=True))
 
         v.addWidget(self._divider())
         # toggles
@@ -726,6 +729,169 @@ class MainWindow(QWidget):
                          f"QCheckBox::indicator:checked{{background:{BLUE};border-color:{BLUE};}}")
         cb.toggled.connect(lambda val: setter(val))
         return cb
+
+    # ---- hotkey capture ----
+    _MODORD = ["ctrl", "alt", "shift", "win"]
+    _NICE = {
+        "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "win": "Win",
+        "space": "Space", "caps_lock": "Caps", "tab": "Tab", "esc": "Esc",
+    }
+
+    def _hotkey_row(self, label, current, which, allow_empty=False):
+        w = QWidget(); h = QHBoxLayout(w); h.setContentsMargins(0, 0, 0, 0); h.setSpacing(8)
+        lab = QLabel(label); lab.setFont(_f(10)); lab.setFixedWidth(170); lab.setStyleSheet(f"color:{INK};")
+        field = QLineEdit(self._hotkey_text(current)); field.setFont(_f(10))
+        field.setPlaceholderText("ctrl+win, alt+ctrl+shift")
+        field.setStyleSheet(f"background:{PANEL};color:{INK};border:1px solid {LINE};"
+                            "border-radius:8px;padding:7px 10px;min-width:260px;")
+        save = QPushButton("Save"); save.setCursor(Qt.PointingHandCursor); save.setStyleSheet(self._btn_qss())
+        add = QPushButton("Add shortcut"); add.setCursor(Qt.PointingHandCursor); add.setStyleSheet(self._btn_qss(primary=True))
+        clear = QPushButton("Clear"); clear.setCursor(Qt.PointingHandCursor); clear.setStyleSheet(self._btn_qss(danger=True))
+        save.clicked.connect(lambda: self._save_hotkey_field(which, field, allow_empty))
+        add.clicked.connect(lambda: self._capture_hotkey(which, field))
+        clear.clicked.connect(lambda: (field.setText(""), self._save_hotkey_field(which, field, True)))
+        h.addWidget(lab); h.addWidget(field, 1); h.addWidget(save); h.addWidget(add)
+        if allow_empty:
+            h.addWidget(clear)
+        h.addStretch()
+        return w
+
+    def _hotkey_text(self, value):
+        if value is None:
+            return ""
+        if isinstance(value, (list, tuple)):
+            return ", ".join(str(v) for v in value if str(v).strip())
+        return str(value or "")
+
+    def _save_hotkey_field(self, which, field, allow_empty=False):
+        value = self._normalize_hotkey_list(field.text())
+        if not value and not allow_empty:
+            QMessageBox.warning(self, "Plyrium Echo", "Push-to-talk needs at least one shortcut.")
+            field.setText(self._hotkey_text(self.cfg.hotkey))
+            return
+        field.setText(value)
+        if which == "ptt":
+            self.app.set_hotkey(ptt=value)
+        else:
+            self.app.set_hotkey(handsfree=value or None)
+
+    def _normalize_hotkey_list(self, text):
+        combos = []
+        seen = set()
+        for raw in (text or "").replace(";", ",").split(","):
+            combo = self._normalize_combo(raw)
+            if combo and combo not in seen:
+                combos.append(combo)
+                seen.add(combo)
+        return ", ".join(combos)
+
+    def _normalize_combo(self, text):
+        toks = []
+        seen = set()
+        for raw in (text or "").lower().replace(" ", "").split("+"):
+            tok = {"control": "ctrl", "cmd": "win", "super": "win", "meta": "win",
+                   "option": "alt"}.get(raw, raw)
+            if tok and tok not in seen:
+                toks.append(tok)
+                seen.add(tok)
+        ordered = [m for m in self._MODORD if m in seen]
+        ordered.extend(sorted(t for t in toks if t not in self._MODORD))
+        return "+".join(ordered)
+
+    def _pretty_combo(self, combo):
+        toks = [t for t in combo.split("+") if t]
+        return " + ".join(self._NICE.get(t, t.upper() if len(t) <= 2 else t.capitalize()) for t in toks)
+
+    def _capture_hotkey(self, which, field):
+        dlg = QDialog(self)
+        dlg.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+        dlg.setModal(True)
+        dlg.setStyleSheet(f"QDialog{{background:{PANEL2};border:1px solid {BLUE};border-radius:12px;}}")
+        dlg.setFixedSize(420, 170)
+        box = QVBoxLayout(dlg); box.setContentsMargins(22, 20, 22, 18); box.setSpacing(10)
+        title = QLabel("Press your shortcut")
+        title.setAlignment(Qt.AlignCenter); title.setFont(_f(14, bold=True)); title.setStyleSheet(f"color:{INK};")
+        current = QLabel("...")
+        current.setAlignment(Qt.AlignCenter); current.setFont(_f(15, bold=True, mono=True)); current.setStyleSheet(f"color:{CYAN};")
+        hint = QLabel("Release the keys to add it. Esc cancels.")
+        hint.setAlignment(Qt.AlignCenter); hint.setFont(_f(9)); hint.setStyleSheet(f"color:{DIM};")
+        box.addWidget(title); box.addWidget(current); box.addWidget(hint)
+        state = {"held": set(), "best": set(), "done": False}
+
+        def finish(combo=None):
+            if state["done"]:
+                return
+            state["done"] = True
+            try:
+                self.app.hk.suspended = False
+                self.app.hk.pressed.clear()
+            except Exception:
+                pass
+            if combo:
+                existing = field.text().strip()
+                field.setText(self._normalize_hotkey_list(
+                    f"{existing}, {combo}" if existing else combo
+                ))
+                self._save_hotkey_field(which, field, allow_empty=(which != "ptt"))
+            dlg.accept()
+
+        def press(e):
+            tok = self._qt_key_token(e)
+            if tok == "esc":
+                finish(None)
+                return
+            if tok:
+                state["held"].add(tok)
+                if len(state["held"]) >= len(state["best"]):
+                    state["best"] = set(state["held"])
+                    combo = self._normalize_combo("+".join(state["best"]))
+                    current.setText(self._pretty_combo(combo))
+            e.accept()
+
+        def release(e):
+            tok = self._qt_key_token(e)
+            if tok:
+                state["held"].discard(tok)
+            if not state["held"] and state["best"]:
+                finish(self._normalize_combo("+".join(state["best"])))
+            e.accept()
+
+        try:
+            self.app.hk.suspended = True
+        except Exception:
+            pass
+        dlg.keyPressEvent = press
+        dlg.keyReleaseEvent = release
+        dlg.finished.connect(lambda _=0: finish(None))
+        dlg.show()
+        dlg.activateWindow()
+        dlg.setFocus(Qt.ActiveWindowFocusReason)
+        dlg.exec()
+
+    def _qt_key_token(self, e):
+        key = e.key()
+        mapping = {
+            Qt.Key_Control: "ctrl",
+            Qt.Key_Alt: "alt",
+            Qt.Key_Shift: "shift",
+            Qt.Key_Meta: "win",
+            Qt.Key_Space: "space",
+            Qt.Key_Tab: "tab",
+            Qt.Key_CapsLock: "caps_lock",
+            Qt.Key_Escape: "esc",
+        }
+        for name in ("Key_Super_L", "Key_Super_R"):
+            val = getattr(Qt, name, None)
+            if val is not None:
+                mapping[val] = "win"
+        if key in mapping:
+            return mapping[key]
+        if Qt.Key_F1 <= key <= Qt.Key_F35:
+            return f"f{key - Qt.Key_F1 + 1}"
+        text = (e.text() or "").lower()
+        if len(text) == 1 and text.isalnum():
+            return text
+        return None
 
     def _divider(self):
         d = QFrame(); d.setFixedHeight(1); d.setStyleSheet(f"background:{LINE};"); return d

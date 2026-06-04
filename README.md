@@ -96,8 +96,8 @@ identically. (`PLYRIUM_ECHO_ALLOW_NET=1` opts out if you ever want update checks
 | `language`           | `null`           | `null` = auto-detect spoken language; set a language code only when you want to force one |
 | `device`             | `auto`           | `auto` (GPU if present) · `cuda` · `cpu` |
 | `compute_type`       | `auto`           | `auto` · `float16` · `int8` · `int8_float16` |
-| `hotkey`             | `ctrl+win`       | Hold-to-talk combo |
-| `handsfree_hotkey`   | `ctrl+win+space` | Tap-to-toggle, or `null` to disable |
+| `hotkey`             | `ctrl+win`       | Hold-to-talk shortcut; comma-separate multiple bindings |
+| `handsfree_hotkey`   | `ctrl+win+space` | Tap-to-toggle shortcut; comma-separate multiple bindings, or `null` to disable |
 | `output_mode`        | `paste`          | `paste` · `type` · `clipboard` · `both` |
 | `smart_format`       | `true`           | Filler removal + backtrack |
 | `chat_apps_no_period`| `true`           | Drop trailing period in Slack/Discord/etc. |

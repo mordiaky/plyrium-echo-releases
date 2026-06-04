@@ -21,7 +21,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Iterable, Optional
 
 from pynput import keyboard
 
@@ -70,17 +70,37 @@ def parse_combo(spec: str) -> frozenset[str]:
     return frozenset(keys)
 
 
+def parse_combo_list(spec: str | Iterable[str] | None) -> tuple[frozenset[str], ...]:
+    """Accept one combo, comma/semicolon separated combos, or a list of combos."""
+    if spec is None:
+        return tuple()
+    if isinstance(spec, str):
+        raw = spec.replace(";", ",").split(",")
+    else:
+        raw = list(spec)
+    combos = []
+    seen = set()
+    for item in raw:
+        combo = parse_combo(str(item))
+        if combo and combo not in seen:
+            combos.append(combo)
+            seen.add(combo)
+    return tuple(combos)
+
+
 class HotkeyManager:
     def __init__(
         self,
-        ptt: str,
-        handsfree: str | None,
+        ptt: str | Iterable[str],
+        handsfree: str | Iterable[str] | None,
         on_start: Callable[[str], None],
         on_stop: Callable[[], None],
         on_cancel: Callable[[], None] | None = None,
     ):
-        self.ptt_keys = parse_combo(ptt)
-        self.hf_keys = parse_combo(handsfree) if handsfree else frozenset()
+        self.ptt_combos = parse_combo_list(ptt)
+        self.hf_combos = parse_combo_list(handsfree)
+        self.ptt_keys = self.ptt_combos[0] if self.ptt_combos else frozenset()
+        self.hf_keys = self.hf_combos[0] if self.hf_combos else frozenset()
         self._on_start = on_start
         self._on_stop = on_stop
         self._on_cancel = on_cancel
@@ -91,7 +111,8 @@ class HotkeyManager:
         self.mode: str | None = None      # "ptt" | "hf"
         self._hf_held = False             # HF combo currently fully down (edge detect)
         self._listener: keyboard.Listener | None = None
-        _dbg(f"INIT ptt={set(self.ptt_keys)} hf={set(self.hf_keys)}")
+        _dbg(f"INIT ptt={list(map(set, self.ptt_combos))} "
+             f"hf={list(map(set, self.hf_combos))}")
 
     # ── event handling ───────────────────────────────────────────
     def _press(self, key) -> None:
@@ -121,8 +142,8 @@ class HotkeyManager:
         self._evaluate()
 
     def _evaluate(self) -> None:
-        hf_now = bool(self.hf_keys) and self.hf_keys <= self.pressed
-        ptt_now = self.ptt_keys <= self.pressed
+        hf_now = self._any_combo_down(self.hf_combos)
+        ptt_now = self._any_combo_down(self.ptt_combos)
 
         # Hands-free: toggle on the rising edge of its combo.
         if hf_now and not self._hf_held:
@@ -159,6 +180,9 @@ class HotkeyManager:
             self.mode = "hf"
             _dbg(">>> START hf")
             self._safe(self._on_start, "hf")
+
+    def _any_combo_down(self, combos: tuple[frozenset[str], ...]) -> bool:
+        return any(combo <= self.pressed for combo in combos)
 
     @staticmethod
     def _safe(fn, *args) -> None:

@@ -21,7 +21,8 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QObject, Signal, QTimer
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QBrush, QLinearGradient, QIcon
+from PySide6.QtGui import (QColor, QCursor, QPainter, QPainterPath, QPen,
+                           QBrush, QLinearGradient, QIcon)
 from PySide6.QtWidgets import QApplication, QWidget
 
 # brand signal gradient
@@ -77,7 +78,9 @@ class FlowBar(QWidget):
         self._place()
 
     def _place(self):
-        screen = QApplication.primaryScreen().availableGeometry()
+        pos = QCursor.pos()
+        screen_obj = QApplication.screenAt(pos) or QApplication.primaryScreen()
+        screen = screen_obj.availableGeometry()
         self.move(
             screen.center().x() - self._w // 2,
             screen.bottom() - self._h - FLOWBAR_BOTTOM_GAP,
@@ -133,8 +136,12 @@ class FlowBar(QWidget):
             d = (i - mid) / mid
             taper = math.exp(-(d * d) * 1.6)
             if self._state == "recording":
-                wob = 0.5 + 0.5 * math.sin(self._phase * 0.18 + i * 0.55)
-                target = (0.12 + 0.88 * self._level) * (0.45 + 0.55 * wob) * taper
+                signal = max(0.0, (self._level - 0.025) / 0.975)
+                if signal <= 0.001:
+                    target = 0.035
+                else:
+                    wob = 0.35 + 0.65 * math.sin(self._phase * 0.22 + i * 0.62) ** 2
+                    target = (0.035 + 0.58 * signal * wob) * taper
             else:  # transcribing shimmer
                 wob = 0.5 + 0.5 * math.sin(self._phase * 0.10 - i * 0.4)
                 target = (0.18 + 0.20 * wob) * taper

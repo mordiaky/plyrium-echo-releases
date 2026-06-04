@@ -6,7 +6,7 @@ on:
       version:
         description: "Release version, for example 1.0.1"
         required: true
-        default: "1.0.7"
+        default: "1.0.8"
   push:
     tags:
       - "v*"
@@ -66,6 +66,7 @@ jobs:
           python tests/test_audio_devices.py
           python tests/test_format.py
           python tests/test_gate.py
+          python tests/test_hotkey_bindings.py
           python tests/test_updater.py
           python tests/test_model_runtime.py
 
