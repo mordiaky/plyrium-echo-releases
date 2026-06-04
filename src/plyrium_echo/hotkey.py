@@ -23,7 +23,10 @@ import time
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
-from pynput import keyboard
+try:
+    from pynput import keyboard
+except Exception:  # pragma: no cover - Linux CI may not have an X display.
+    keyboard = None
 
 _DEBUG = os.environ.get("PLYRIUM_ECHO_DEBUG") == "1"
 _LOGPATH = Path(tempfile.gettempdir()) / "plyrium-echo-hotkey.log"
@@ -41,6 +44,8 @@ def _dbg(msg: str) -> None:
 
 def _norm(key) -> Optional[str]:
     """Normalize a pynput key to a canonical name (left/right merged)."""
+    if keyboard is None:
+        return None
     if isinstance(key, keyboard.KeyCode):
         return key.char.lower() if key.char else None
     name = getattr(key, "name", None)
@@ -194,11 +199,15 @@ class HotkeyManager:
 
     # ── lifecycle ────────────────────────────────────────────────
     def run(self) -> None:
+        if keyboard is None:
+            raise RuntimeError("pynput keyboard backend is unavailable")
         with keyboard.Listener(on_press=self._press, on_release=self._release) as ll:
             self._listener = ll
             ll.join()
 
     def start(self) -> keyboard.Listener:
+        if keyboard is None:
+            raise RuntimeError("pynput keyboard backend is unavailable")
         self._listener = keyboard.Listener(on_press=self._press,
                                            on_release=self._release)
         self._listener.start()
