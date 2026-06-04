@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QObject, Signal, QTimer
 from PySide6.QtGui import (QColor, QCursor, QPainter, QPainterPath, QPen,
-                           QBrush, QLinearGradient, QIcon)
+                           QBrush, QLinearGradient, QIcon, QPalette)
 from PySide6.QtWidgets import QApplication, QWidget
 
 # brand signal gradient
@@ -55,6 +55,38 @@ def _install_windows_app_id() -> None:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
     except Exception:
         pass
+
+
+def _install_dark_qt_defaults(qapp: QApplication) -> None:
+    """Force dark widget defaults so native themes cannot leak white panels."""
+    try:
+        qapp.setStyle("Fusion")
+    except Exception:
+        pass
+    pal = QPalette()
+    pal.setColor(QPalette.Window, QColor("#060608"))
+    pal.setColor(QPalette.WindowText, QColor("#f0eee8"))
+    pal.setColor(QPalette.Base, QColor("#0b0d12"))
+    pal.setColor(QPalette.AlternateBase, QColor("#11141b"))
+    pal.setColor(QPalette.ToolTipBase, QColor("#151924"))
+    pal.setColor(QPalette.ToolTipText, QColor("#f0eee8"))
+    pal.setColor(QPalette.Text, QColor("#f0eee8"))
+    pal.setColor(QPalette.Button, QColor("#151924"))
+    pal.setColor(QPalette.ButtonText, QColor("#f0eee8"))
+    pal.setColor(QPalette.Highlight, QColor("#5B7CFF"))
+    pal.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+    qapp.setPalette(pal)
+    qapp.setStyleSheet("""
+        QWidget { background-color: #060608; color: #f0eee8; }
+        QFrame, QLabel, QStackedWidget, QScrollArea, QScrollArea > QWidget,
+        QScrollArea > QWidget > QWidget { background: transparent; }
+        QLineEdit, QComboBox, QListWidget, QAbstractItemView {
+            background-color: #11141b; color: #f0eee8;
+            selection-background-color: #5B7CFF; selection-color: #ffffff;
+        }
+        QPushButton { background-color: #1a2030; color: #f0eee8; }
+        QCheckBox { background: transparent; color: #f0eee8; }
+    """)
 
 
 class FlowBar(QWidget):
@@ -198,6 +230,7 @@ class QtController:
         self.app = app
         _install_windows_app_id()
         self.qapp = QApplication.instance() or QApplication([])
+        _install_dark_qt_defaults(self.qapp)
         self._app_icon = QIcon(str(_asset_path("assets", "echo.ico")))
         if self._app_icon.isNull():
             self._app_icon = QIcon(str(_asset_path("assets", "brand", "echo-app-icon.png")))
