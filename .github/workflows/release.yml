@@ -6,7 +6,7 @@ on:
       version:
         description: "Release version, for example 1.0.1"
         required: true
-        default: "1.0.13"
+        default: "1.0.14"
   push:
     tags:
       - "v*"
@@ -60,6 +60,22 @@ jobs:
           pip install -r "${{ matrix.requirements }}"
           pip install pyinstaller
 
+      - name: Generate macOS app icon
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p build/echo.iconset
+          for size in 16 32 64 128 256 512; do
+            sips -z "$size" "$size" assets/brand/echo-app-icon.png --out "build/echo.iconset/icon_${size}x${size}.png"
+          done
+          sips -z 32 32 assets/brand/echo-app-icon.png --out build/echo.iconset/icon_16x16@2x.png
+          sips -z 64 64 assets/brand/echo-app-icon.png --out build/echo.iconset/icon_32x32@2x.png
+          sips -z 256 256 assets/brand/echo-app-icon.png --out build/echo.iconset/icon_128x128@2x.png
+          sips -z 512 512 assets/brand/echo-app-icon.png --out build/echo.iconset/icon_256x256@2x.png
+          sips -z 1024 1024 assets/brand/echo-app-icon.png --out build/echo.iconset/icon_512x512@2x.png
+          iconutil -c icns build/echo.iconset -o assets/brand/echo-app-icon.icns
+
       - name: Run unit tests
         shell: bash
         run: |
@@ -80,6 +96,7 @@ jobs:
         run: |
           set -euxo pipefail
           APP_DIR="dist/Plyrium Echo"
+          APP_BUNDLE="dist/Plyrium Echo.app"
           # PyInstaller onedir embeds Python.framework plus native dylibs.
           # If those nested Mach-O files are unsigned, Gatekeeper reports
           # Python.framework as "damaged" after download/extraction.
@@ -87,11 +104,12 @@ jobs:
             if file "$file" | grep -q "Mach-O"; then
               codesign --force --sign - --timestamp=none "$file"
             fi
-          done < <(find "$APP_DIR" -type f)
-          find "$APP_DIR" -type d -name "*.framework" -print0 \
+          done < <(find "$APP_DIR" "$APP_BUNDLE" -type f)
+          find "$APP_DIR" "$APP_BUNDLE" -type d -name "*.framework" -print0 \
             | xargs -0 -I {} codesign --force --deep --sign - --timestamp=none "{}"
-          xattr -cr "$APP_DIR" || true
-          codesign --verify --deep --strict "$APP_DIR/Plyrium Echo"
+          xattr -cr "$APP_DIR" "$APP_BUNDLE" || true
+          codesign --force --deep --sign - --timestamp=none "$APP_BUNDLE"
+          codesign --verify --deep --strict "$APP_BUNDLE"
 
       - name: Build Windows installer
         if: runner.os == 'Windows'
@@ -114,7 +132,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          ditto -c -k --sequesterRsrc --keepParent "dist/Plyrium Echo" "dist/Plyrium-Echo-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "dist/Plyrium Echo.app" "dist/Plyrium-Echo-macOS.zip"
 
       - name: Package Linux zip
         if: runner.os == 'Linux'

@@ -101,6 +101,8 @@ exe_kwargs = {
 }
 if IS_WINDOWS:
     exe_kwargs["icon"] = "assets/echo.ico"
+elif IS_MAC:
+    exe_kwargs["target_arch"] = "arm64"
 
 exe = EXE(
     pyz,
@@ -119,3 +121,18 @@ coll = COLLECT(
     name="Plyrium Echo",
 )
 
+if IS_MAC:
+    app = BUNDLE(
+        coll,
+        name="Plyrium Echo.app",
+        icon="assets/brand/echo-app-icon.icns",
+        bundle_identifier="com.plyrium.echo",
+        info_plist={
+            "CFBundleDisplayName": "Plyrium Echo",
+            "CFBundleName": "Plyrium Echo",
+            "CFBundleShortVersionString": "1.0.14",
+            "CFBundleVersion": "1.0.14",
+            "NSMicrophoneUsageDescription": "Plyrium Echo uses the microphone for local push-to-talk dictation.",
+            "NSAppleEventsUsageDescription": "Plyrium Echo uses automation permissions to paste dictated text into the active app.",
+        },
+    )
