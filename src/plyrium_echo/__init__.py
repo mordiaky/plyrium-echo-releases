@@ -4,4 +4,4 @@ Hold a global hotkey, speak, release — the transcript is punctuated and pasted
 into whatever window currently has focus.
 """
 
-__version__ = "1.0.12"
+__version__ = "1.0.13"
