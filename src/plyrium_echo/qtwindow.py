@@ -20,7 +20,7 @@ import threading
 import time
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, QPointF, QRectF, Signal, QTimer
+from PySide6.QtCore import Qt, QSize, QPointF, QRectF, Signal, QTimer, QObject, QEvent
 from PySide6.QtGui import (QColor, QFont, QFontDatabase, QLinearGradient,
                            QPainter, QPainterPath, QPen, QBrush, QPixmap,
                            QRadialGradient, QIcon)
@@ -850,26 +850,22 @@ class MainWindow(QWidget):
         hint = QLabel("Release the keys to add it. Esc cancels.")
         hint.setAlignment(Qt.AlignCenter); hint.setFont(_f(9)); hint.setStyleSheet(f"color:{DIM};")
         box.addWidget(title); box.addWidget(current); box.addWidget(hint)
-        state = {"held": set(), "best": set(), "done": False}
+        state = {"held": set(), "best": set(), "done": False, "combo": None}
 
         def finish(combo=None):
             if state["done"]:
                 return
             state["done"] = True
-            try:
-                self.app.hk.suspended = False
-                self.app.hk.pressed.clear()
-            except Exception:
-                pass
+            state["combo"] = combo
             if combo:
-                existing = field.text().strip()
-                field.setText(self._normalize_hotkey_list(
-                    f"{existing}, {combo}" if existing else combo
-                ))
-                self._save_hotkey_field(which, field, allow_empty=(which != "ptt"))
-            dlg.accept()
+                dlg.accept()
+            else:
+                dlg.reject()
 
         def press(e):
+            if e.isAutoRepeat():
+                e.accept()
+                return
             tok = self._qt_key_token(e)
             if tok == "esc":
                 finish(None)
@@ -883,6 +879,9 @@ class MainWindow(QWidget):
             e.accept()
 
         def release(e):
+            if e.isAutoRepeat():
+                e.accept()
+                return
             tok = self._qt_key_token(e)
             if tok:
                 state["held"].discard(tok)
@@ -890,17 +889,44 @@ class MainWindow(QWidget):
                 finish(self._normalize_combo("+".join(state["best"])))
             e.accept()
 
+        class _CaptureFilter(QObject):
+            def eventFilter(self, obj, event):
+                if event.type() == QEvent.KeyPress:
+                    press(event)
+                    return True
+                if event.type() == QEvent.KeyRelease:
+                    release(event)
+                    return True
+                return False
+
+        app = QApplication.instance()
+        capture_filter = _CaptureFilter(dlg)
         try:
             self.app.hk.suspended = True
         except Exception:
             pass
-        dlg.keyPressEvent = press
-        dlg.keyReleaseEvent = release
-        dlg.finished.connect(lambda _=0: finish(None))
-        dlg.show()
-        dlg.activateWindow()
-        dlg.setFocus(Qt.ActiveWindowFocusReason)
-        dlg.exec()
+        if app is not None:
+            app.installEventFilter(capture_filter)
+        try:
+            dlg.show()
+            dlg.activateWindow()
+            dlg.setFocus(Qt.ActiveWindowFocusReason)
+            dlg.exec()
+        finally:
+            if app is not None:
+                app.removeEventFilter(capture_filter)
+            try:
+                self.app.hk.suspended = False
+                self.app.hk.pressed.clear()
+            except Exception:
+                pass
+
+        if state["combo"]:
+            existing = field.text().strip()
+            field.setText(self._normalize_hotkey_list(
+                f"{existing}, {state['combo']}" if existing else state["combo"]
+            ))
+            self._save_hotkey_field(which, field, allow_empty=(which != "ptt"))
 
     def _qt_key_token(self, e):
         key = e.key()
