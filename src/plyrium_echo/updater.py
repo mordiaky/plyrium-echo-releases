@@ -66,10 +66,11 @@ def is_newer_version(candidate: str, current: str = __version__) -> bool:
     return left + (0,) * (width - len(left)) > right + (0,) * (width - len(right))
 
 
-def platform_asset_name() -> str | None:
-    if sys.platform.startswith("linux"):
+def platform_asset_name(platform: str | None = None) -> str | None:
+    platform = platform or sys.platform
+    if platform.startswith("linux"):
         return ASSET_BY_PLATFORM["linux"]
-    return ASSET_BY_PLATFORM.get(sys.platform)
+    return ASSET_BY_PLATFORM.get(platform)
 
 
 def _request_json(url: str, timeout: int = 15) -> dict:
@@ -251,4 +252,3 @@ def launch_installer(package: Path, release: ReleaseInfo) -> str:
 
     subprocess.Popen(["xdg-open", str(package.parent)])
     return "The Linux update package was downloaded. Replace the current app with the new package when ready."
-

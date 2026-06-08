@@ -12,6 +12,7 @@ from plyrium_echo.updater import (  # noqa: E402
     _expected_sha256,
     is_newer_version,
     parse_version,
+    platform_asset_name,
 )
 
 cases = []
@@ -38,6 +39,11 @@ check(
     _expected_sha256("abc " + "f" * 64 + "  Plyrium-Echo-Setup.exe"),
     "f" * 64,
 )
+check("windows asset", platform_asset_name("win32"), "Plyrium-Echo-Setup.exe")
+check("macos asset", platform_asset_name("darwin"), "Plyrium-Echo-macOS.zip")
+check("linux asset", platform_asset_name("linux"), "Plyrium-Echo-Linux.AppImage")
+check("linux variant asset", platform_asset_name("linux2"), "Plyrium-Echo-Linux.AppImage")
+check("unknown platform", platform_asset_name("freebsd13"), None)
 
 passed = sum(cases)
 total = len(cases)

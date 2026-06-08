@@ -1035,7 +1035,7 @@ class MainWindow(QWidget):
         self._check_update_btn.setCursor(Qt.PointingHandCursor)
         self._check_update_btn.setStyleSheet(self._btn_qss())
         self._check_update_btn.clicked.connect(self._check_updates)
-        self._install_update_btn = QPushButton("Download and install")
+        self._install_update_btn = QPushButton("Download update")
         self._install_update_btn.setCursor(Qt.PointingHandCursor)
         self._install_update_btn.setStyleSheet(self._btn_qss(primary=True))
         self._install_update_btn.clicked.connect(self._install_update)
@@ -1075,8 +1075,8 @@ class MainWindow(QWidget):
         if release.update_available:
             self._install_update_btn.setEnabled(True)
             self._set_update_message(
-                f"Plyrium Echo {release.version} is available. Click Download "
-                "and install to update in place."
+                f"Plyrium Echo {release.version} is available for this system "
+                f"({release.asset.name}). Click Download update to continue."
             )
         else:
             self._install_update_btn.setEnabled(False)
@@ -1089,9 +1089,11 @@ class MainWindow(QWidget):
         if QMessageBox.question(
             self,
             "Install update",
-            "Echo will download and verify the update. On Windows, the app will "
-            "close, update in place, and reopen. Your transcripts, license, "
-            "settings, and models will stay intact.",
+            "Echo will download the update package that matches this operating "
+            "system and verify its SHA-256 checksum. Windows updates install "
+            "in place automatically; macOS and Linux open the downloaded package "
+            "folder with the next step. Your transcripts, license, settings, "
+            "and models stay intact.",
         ) != QMessageBox.Yes:
             return
         self._check_update_btn.setEnabled(False)
