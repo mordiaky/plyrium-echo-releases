@@ -278,4 +278,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # PyInstaller-frozen macOS builds can spawn Python's multiprocessing
+    # resource tracker using internal flags such as "-B -S -I -c ...". Without
+    # freeze_support(), those helper invocations fall through to argparse below
+    # and open extra Terminal windows with "unrecognized arguments" errors.
+    import multiprocessing
+
+    multiprocessing.freeze_support()
     raise SystemExit(main())
