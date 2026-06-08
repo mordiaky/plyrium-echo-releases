@@ -45,11 +45,13 @@ def _audio_dbg(msg: str) -> None:
         pass
 
 # Host-API preference: real-mic-binding APIs first, MME (mixes/bleeds) last.
-_HOSTAPI_RANK = {"Windows WASAPI": 0, "Windows DirectSound": 1,
-                 "Windows WDM-KS": 2, "MME": 9}
+_HOSTAPI_RANK = {"Windows WASAPI": 0, "Core Audio": 0, "PulseAudio": 0,
+                 "Windows DirectSound": 1, "ALSA": 1, "Windows WDM-KS": 2,
+                 "JACK Audio Connection Kit": 2, "MME": 9, "OSS": 9}
 _MIC_HINTS = ("microphone", "mic")
 _SKIP_HINTS = ("stereo mix", "what u hear", "wave out", "loopback",
-               "sound mapper", "primary sound")
+               "sound mapper", "primary sound", "pc speaker",
+               "monitor of", ".monitor", "blackhole", "soundflower")
 
 
 def _normalize_gain(audio: np.ndarray, target_peak: float = 0.95,
@@ -101,6 +103,51 @@ def _default_input_device():
         return None
 
 
+def _default_input_devices() -> list[int]:
+    """Return usable default input endpoints, best API first.
+
+    PortAudio exposes one process default plus per-host-API defaults. On Windows
+    those can disagree: the process default may be an old MME endpoint while
+    WASAPI has the actual Settings-selected microphone. Keep all usable defaults
+    at the front so Echo follows Windows before trying other connected mics.
+    """
+    order: list[int] = []
+
+    def add(idx) -> None:  # noqa: ANN001
+        try:
+            if idx is None or int(idx) < 0:
+                return
+            idx = int(idx)
+            d = sd.query_devices(idx)
+            if d.get("max_input_channels", 0) <= 0:
+                return
+            name = d["name"].lower()
+            if any(h in name for h in _SKIP_HINTS):
+                return
+            if idx not in order:
+                order.append(idx)
+        except Exception:
+            return
+
+    # Prefer modern Windows defaults over legacy APIs when host defaults exist.
+    host_defaults = []
+    try:
+        for h in sd.query_hostapis():
+            idx = h.get("default_input_device")
+            if idx is None or int(idx) < 0:
+                continue
+            rank = _HOSTAPI_RANK.get(h.get("name", ""), 5)
+            host_defaults.append((rank, int(idx)))
+    except Exception:
+        host_defaults = []
+    for _, idx in sorted(host_defaults):
+        add(idx)
+
+    # Include the process-level default as a fallback if it differs.
+    add(_default_input_device())
+    return order
+
+
 def candidate_devices(explicit=None) -> list:
     """Ordered list of input device indices to try, best first.
 
@@ -112,9 +159,9 @@ def candidate_devices(explicit=None) -> list:
     order: list = []
     if explicit is not None:
         order.append(explicit)
-    default = _default_input_device()
-    if default is not None and default not in order:
-        order.append(default)
+    for default in _default_input_devices():
+        if default not in order:
+            order.append(default)
 
     rows = []
     try:

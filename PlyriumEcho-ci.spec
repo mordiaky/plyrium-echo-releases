@@ -130,8 +130,8 @@ if IS_MAC:
         info_plist={
             "CFBundleDisplayName": "Plyrium Echo",
             "CFBundleName": "Plyrium Echo",
-            "CFBundleShortVersionString": "1.0.17",
-            "CFBundleVersion": "1.0.17",
+            "CFBundleShortVersionString": "1.0.18",
+            "CFBundleVersion": "1.0.18",
             "NSMicrophoneUsageDescription": "Plyrium Echo uses the microphone for local push-to-talk dictation.",
             "NSAppleEventsUsageDescription": "Plyrium Echo uses automation permissions to paste dictated text into the active app.",
         },
