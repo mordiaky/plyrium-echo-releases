@@ -13,7 +13,7 @@ Unicode true
 
 !define APPNAME "Plyrium Echo"
 !define COMPANY "Plyrium"
-!define VERSION "1.0.18"
+!define VERSION "1.0.19"
 !define EXENAME "Plyrium Echo.exe"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\PlyriumEcho"
 
@@ -49,6 +49,11 @@ Section "Install"
   nsExec::Exec 'taskkill /F /IM "${EXENAME}"'
   Sleep 800
 
+  ; Replace the install bundle instead of overlaying it. PyInstaller packages
+  ; native extension modules under _internal; stale files from older builds can
+  ; crash imports after an upgrade. User data lives in %LOCALAPPDATA%\${APPNAME},
+  ; outside $INSTDIR, so license/history/models are preserved.
+  RMDir /r "$INSTDIR"
   SetOutPath "$INSTDIR"
   File /r "dist\Plyrium Echo\*"
 
