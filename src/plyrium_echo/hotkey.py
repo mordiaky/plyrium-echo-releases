@@ -18,6 +18,7 @@ plyrium-echo-hotkey.log in the temp dir — used to diagnose the real app live.
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -64,6 +65,36 @@ def _norm(key) -> Optional[str]:
 
 _ALIASES = {"win": "win", "cmd": "win", "super": "win", "meta": "win",
             "control": "ctrl", "option": "alt"}
+_MODIFIERS = ("ctrl", "alt", "shift", "win")
+
+
+def _physical_modifier_down(name: str) -> bool | None:
+    """Return the physical Windows modifier state, or None when unavailable.
+
+    The global hook can miss Win-key releases when Windows handles a shell
+    shortcut. If that happens, our logical ``pressed`` set keeps ``win`` and
+    Ctrl alone starts looking like Ctrl+Win. We only sample modifier keys during
+    real key events, avoiding the old background watchdog/race while correcting
+    stale modifier state.
+    """
+    if not sys.platform.startswith("win"):
+        return None
+    vk_map = {
+        "ctrl": (0x11, 0xA2, 0xA3),   # VK_CONTROL, VK_LCONTROL, VK_RCONTROL
+        "alt": (0x12, 0xA4, 0xA5),    # VK_MENU, VK_LMENU, VK_RMENU
+        "shift": (0x10, 0xA0, 0xA1),  # VK_SHIFT, VK_LSHIFT, VK_RSHIFT
+        "win": (0x5B, 0x5C),          # VK_LWIN, VK_RWIN
+    }
+    vks = vk_map.get(name)
+    if not vks:
+        return None
+    try:
+        import ctypes
+
+        return any(bool(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000)
+                   for vk in vks)
+    except Exception:
+        return None
 
 
 def parse_combo(spec: str) -> frozenset[str]:
@@ -133,6 +164,7 @@ class HotkeyManager:
             self._safe(self._on_cancel) if self._on_cancel else None
             return
         self.pressed.add(n)
+        self._sync_modifiers()
         _dbg(f"PRESS {n}  held={sorted(self.pressed)}")
         self._evaluate()
 
@@ -143,6 +175,7 @@ class HotkeyManager:
         if n is None:
             return
         self.pressed.discard(n)
+        self._sync_modifiers()
         _dbg(f"REL   {n}  held={sorted(self.pressed)}")
         self._evaluate()
 
@@ -188,6 +221,16 @@ class HotkeyManager:
 
     def _any_combo_down(self, combos: tuple[frozenset[str], ...]) -> bool:
         return any(combo <= self.pressed for combo in combos)
+
+    def _sync_modifiers(self) -> None:
+        for name in _MODIFIERS:
+            down = _physical_modifier_down(name)
+            if down is None:
+                continue
+            if down:
+                self.pressed.add(name)
+            else:
+                self.pressed.discard(name)
 
     @staticmethod
     def _safe(fn, *args) -> None:
