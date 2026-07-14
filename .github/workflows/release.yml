@@ -15,8 +15,42 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Prepare draft release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure draft release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; its assets will be replaced in place."
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --draft \
+              --title "Plyrium Echo $TAG" \
+              --notes "Plyrium Echo cross-platform release. Build assets are uploading."
+          fi
+
   build:
     name: Build ${{ matrix.name }}
+    needs: prepare
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -190,49 +224,61 @@ jobs:
           pathlib.Path("SHA256SUMS-${{ matrix.name }}.txt").write_text("".join(lines), encoding="ascii")
           PY
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: echo-${{ matrix.name }}
-          path: |
-            dist/${{ matrix.artifact }}
-            dist/${{ matrix.artifact }}.sha256
-            dist/Plyrium-Echo-Linux.AppImage
-            dist/Plyrium-Echo-Linux.AppImage.sha256
-            dist/SHA256SUMS-${{ matrix.name }}.txt
+      # Publish straight to the draft GitHub Release. Actions artifacts count
+      # against the account's 0.5 GB storage allowance; release assets do not.
+      - name: Upload directly to draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          files=(
+            "dist/${{ matrix.artifact }}"
+            "dist/${{ matrix.artifact }}.sha256"
+            "dist/SHA256SUMS-${{ matrix.name }}.txt"
+          )
+          if [[ "${{ matrix.name }}" == "linux" ]]; then
+            files+=(
+              "dist/Plyrium-Echo-Linux.AppImage"
+              "dist/Plyrium-Echo-Linux.AppImage.sha256"
+            )
+          fi
+          gh release upload "${{ needs.prepare.outputs.tag }}" \
+            "${files[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
   publish:
     name: Publish GitHub release
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: release-assets
-          merge-multiple: true
-
-      - name: Combine checksums
+      - name: Combine release checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cat release-assets/SHA256SUMS-*.txt > release-assets/SHA256SUMS.txt
-          rm release-assets/SHA256SUMS-*.txt
+          mkdir release-checksums
+          gh release download "${{ needs.prepare.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'SHA256SUMS-*.txt' \
+            --dir release-checksums \
+            --clobber
+          cat release-checksums/SHA256SUMS-*.txt > release-checksums/SHA256SUMS.txt
+          gh release upload "${{ needs.prepare.outputs.tag }}" \
+            release-checksums/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
-      - name: Resolve release tag
-        id: tag
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Plyrium Echo ${{ steps.tag.outputs.tag }}
-          files: release-assets/*
-          body: |
+          gh release edit "${{ needs.prepare.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --title "Plyrium Echo ${{ needs.prepare.outputs.tag }}" \
+            --notes-file - <<'EOF'
             Plyrium Echo cross-platform release.
 
             Assets:
@@ -241,3 +287,4 @@ jobs:
             - Linux AppImage: Plyrium-Echo-Linux.AppImage
             - Linux tarball: Plyrium-Echo-Linux.tar.gz
             - Checksums: SHA256SUMS.txt
+          EOF
